@@ -1,0 +1,95 @@
+server {
+    listen 80 default_server;
+    server_name _;
+
+    client_max_body_size 50M;    
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    root /opt/apps/gb;
+
+    rewrite ^ https://gradebuddy.com$request_uri? permanent;
+
+    location /cart {
+      rewrite ^ https://gradebuddy.com$request_uri? permanent;
+    }
+
+    location /s/static/ {
+        alias /opt/apps/gb/static/;
+        location ~* \.swf$ {
+            access_log off;
+            expires off;
+            add_header Content-Type application/x-shockwave-flash;
+        }
+        client_max_body_size 300M;
+    }
+
+    location /blog/ {
+        alias /opt/apps/gb/blog/;
+        location ~ \.php$ {
+	    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+	    # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+
+	    # With php7.0-cgi alone:
+	    #fastcgi_pass 127.0.0.1:9000;
+	    # With php7.0-fpm:
+	    fastcgi_pass unix:/var/run/php/php7.0-fpm.sock;
+	    fastcgi_index index.php;
+	    include fastcgi_params;
+	}
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        add_header P3P 'CP="ALL DSP COR PSAa PSDa OUR NOR ONL UNI COM NAV"';
+    }
+}
+
+server {
+    listen 443 default_server;
+
+    ssl on;
+    ssl_certificate /etc/ssl/sslchain3.crt;
+    ssl_certificate_key /etc/ssl/domain.key;
+
+    client_max_body_size 50M;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    root /opt/apps/gb;
+
+    location /s/static/ {
+        alias /opt/apps/gb/static/;
+        location ~* \.swf$ {
+            access_log off;
+            expires off;
+            add_header Content-Type application/x-shockwave-flash;
+        }
+        client_max_body_size 50M;
+    }
+
+    location /blog/ {
+        alias /opt/apps/gb/blog/;
+	index index.html index.htm to index index.php index.html index.htm;
+
+	try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+	fastcgi_split_path_info ^(.+\.php)(/.+)$;
+	fastcgi_pass unix:/var/run/php/php7.0-fpm.sock;
+	fastcgi_index index.php;
+	include fastcgi_params;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Forwarded-Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        add_header P3P 'CP="ALL DSP COR PSAa PSDa OUR NOR ONL UNI COM NAV"';
+    }
+}
